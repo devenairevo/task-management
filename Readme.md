@@ -18,8 +18,8 @@ make run
 POST - http://localhost:2025/task - making request for mocking data creation, no need post params
 GET - http://localhost:2025/tasks  - get the all user's tasks list with statuses
 GET - http://localhost:2025/task/3 - get specific task by taskID
+PUT - http://localhost:2025/task/3 - Update the task (changes the status to Processing)
 
 ```
 P.S.:
-Could also add additional method for getting tasks by userID. 
 In addition, usage of maps probably better solution than slices for tasks storage, currently implemented slices 

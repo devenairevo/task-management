@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -25,16 +26,26 @@ func main() {
 		ReadTimeout:  1 * time.Minute,
 		WriteTimeout: 1 * time.Minute,
 	}
-	queue := NewQueue(5)
-	taskMng := NewTaskManager()
+
+	wg := &sync.WaitGroup{}
+	channel, _ := NewQueueManager("local", wg)
+	taskMng, _ := NewTaskManager("local")
 
 	http.HandleFunc("/task", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			fmt.Println("Adding tasks to the queue....")
-			generateMockTasks(taskMng)
-			for _, task := range taskMng.UserTasks {
-				queue.Chan <- task
+
+			tasksList := generateMockTasks(taskMng)
+
+			for _, task := range tasksList {
+				err := channel.Enqueue(task)
+				if err != nil {
+					return
+				}
 			}
+
+			wg.Wait()
+
 		}
 
 		return
@@ -42,14 +53,21 @@ func main() {
 
 	http.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			fmt.Println("Getting all users tasks....")
-			for _, t := range taskMng.UserTasks {
-				userTasks := taskMng.GetUserTasks(t.User.ID)
+			fmt.Println("Getting all tasks....")
 
-				for _, task := range userTasks {
-					fmt.Printf("The user with id %d has task name '%s' and status - %s\n", t.User.ID, task.Name, task.Status)
-				}
+			tasks, err := taskMng.ListTasks()
+			if err != nil {
+				fmt.Println(err)
+				return
 			}
+			for _, v := range tasks {
+
+				fmt.Printf("Task with an id %d, name '%s' and status - %s\n", v.ID, v.Name, v.Status)
+
+			}
+
+			fmt.Printf("Queue size: %d\n", channel.Size())
+			fmt.Printf("The queue got empty?: %t\n", channel.IsEmpty())
 
 		}
 
@@ -67,48 +85,95 @@ func main() {
 			}
 
 			fmt.Println("Getting task status....")
-			task, err := taskMng.GetTaskByID(taskID)
+			task, err := taskMng.DescribeTask(taskID)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
+
+			fmt.Printf("Found ✅ : %s with the ID %d and status - %s\n", task.Name, task.ID, task.Status)
+		}
+
+		if r.Method == http.MethodPut {
+			path := r.URL.Path
+
+			id := path[len("/task/"):]
+			taskID, err := strconv.Atoi(id)
+			if err != nil {
+				fmt.Println(err)
+			}
+			task, err := taskMng.DescribeTask(taskID)
+
+			fmt.Println("Updating task....")
+
+			err = taskMng.UpdateTask(task)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			fmt.Printf("Queue size: %d\n", channel.Size())
+			fmt.Printf("The queue got empty?: %t\n", channel.IsEmpty())
+
 			fmt.Printf("Found ✅ : %s with the ID %d and status - %s\n", task.Name, task.ID, task.Status)
 		}
 
 		return
 	})
 
-	go processQueue(queue.Chan)
+	// Run goroutine for Dequeue
+	go func(channel QueueManager, taskMng TaskManager) {
+		for {
+			finishedTask, err := channel.Dequeue()
+			if err != nil {
+				continue
+			}
+
+			task, err := taskMng.DescribeTask(finishedTask.ID)
+			if err == nil {
+				task.Status = Done
+			}
+		}
+	}(channel, taskMng)
+
 	fmt.Printf("Server started, please make your HTTP requests to the localhost with a port %s and watch the results in terminal....\n", server.Addr)
 	log.Fatal(server.ListenAndServe())
 }
 
-func processQueue(queue chan *UserTask) {
-	for value := range queue {
-		value.Task.Status = Processing
-		fmt.Printf("Task %d for %s started processing\n", value.Task.ID, value.User.Name)
-		time.Sleep(3 * time.Second)
-		value.Task.Status = Done
-		fmt.Printf("Task %d for %s finished the processing\n", value.Task.ID, value.User.Name)
+func generateMockTasks(manager TaskManager) []*Task {
+	var tasksList []*Task
 
+	task1 := &CreateTaskParams{1, "User1", 1, "Deploy service"}
+	ut1, _ := manager.CreateTask(task1)
+
+	task2 := &CreateTaskParams{1, "User1", 2, "Deploy another service"}
+	ut2, _ := manager.CreateTask(task2)
+
+	task3 := &CreateTaskParams{2, "User2", 3, "Run integration tests"}
+	ut3, _ := manager.CreateTask(task3)
+
+	task4 := &CreateTaskParams{3, "User3", 4, "Generate report"}
+	ut4, _ := manager.CreateTask(task4)
+
+	tasksList = append(tasksList, ut1, ut2, ut3, ut4)
+
+	return tasksList
+}
+
+func NewQueueManager(queueDriver string, wg *sync.WaitGroup) (QueueManager, error) {
+	switch queueDriver {
+	case "local":
+		return NewChannel(buffSize, wg), nil
+	default:
+		return nil, fmt.Errorf("unsupported queue driver: %s", queueDriver)
 	}
 }
 
-func generateMockTasks(manager *TaskManager) {
-	user1, _ := NewUser(1, "User1")
-	task1, _ := NewTask(1, "Deploy service", Created)
-	task11, _ := NewTask(5, "Deploy another service", Created)
-
-	user2, _ := NewUser(2, "User2")
-	task2, _ := NewTask(2, "Run integration tests", Created)
-
-	user3, _ := NewUser(3, "User3")
-	task3, _ := NewTask(3, "Generate report", Created)
-
-	ut1, _ := NewUserTask(user1, task1)
-	ut2, _ := NewUserTask(user1, task11)
-	ut3, _ := NewUserTask(user2, task2)
-	ut4, _ := NewUserTask(user3, task3)
-
-	manager.AddTask(ut1, ut2, ut3, ut4)
+func NewTaskManager(taskDriver string) (TaskManager, error) {
+	switch taskDriver {
+	case "local":
+		return NewLocalTaskManager(), nil
+	default:
+		return nil, fmt.Errorf("unsupported task driver: %s", taskDriver)
+	}
 }
