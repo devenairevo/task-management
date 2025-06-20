@@ -15,9 +15,9 @@ const (
 )
 
 type Task struct {
-	ID     int
-	Name   string
-	Status Status
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Status Status `json:"status"`
 }
 
 func NewTask(id int, name string, status Status) (*Task, error) {
@@ -103,7 +103,7 @@ func (lt *LocalTaskManager) DescribeTask(taskID int) (*Task, error) {
 			return userTask.Task, nil
 		}
 	}
-	
+
 	return nil, errors.New(fmt.Sprintf("❌  Task with ID %d not found", taskID))
 }
 
@@ -129,4 +129,24 @@ func (lt *LocalTaskManager) UpdateTask(task *Task) error {
 	task.Status = Updated
 
 	return nil
+}
+
+func generateMockTasks(manager TaskManager) []*Task {
+	var tasksList []*Task
+
+	task1 := &CreateTaskParams{1, "User1", 1, "Deploy service"}
+	ut1, _ := manager.CreateTask(task1)
+
+	task2 := &CreateTaskParams{1, "User1", 2, "Deploy another service"}
+	ut2, _ := manager.CreateTask(task2)
+
+	task3 := &CreateTaskParams{2, "User2", 3, "Run integration tests"}
+	ut3, _ := manager.CreateTask(task3)
+
+	task4 := &CreateTaskParams{3, "User3", 4, "Generate report"}
+	ut4, _ := manager.CreateTask(task4)
+
+	tasksList = append(tasksList, ut1, ut2, ut3, ut4)
+
+	return tasksList
 }
