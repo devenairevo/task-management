@@ -16,9 +16,9 @@ make run
 
 ```
 POST - http://localhost:2025/task - making request for mocking data creation, no need post params
-GET - http://localhost:2025/tasks  - get the all user's tasks list with statuses
-GET - http://localhost:2025/task/3 - get specific task by taskID
-PUT - http://localhost:2025/task/3 - Update the task (changes the status to Processing)
+GET - http://localhost:2025/task/create  - get the all user's tasks list with statuses
+GET - http://localhost:2025/tasks/3 - get specific task by taskID
+PUT - http://localhost:2025/tasks/3 - Update the task (changes the status to Processing)
 
 ```
 P.S.:
