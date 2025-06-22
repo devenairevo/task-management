@@ -1,13 +1,15 @@
-package main
+package user
 
-import "errors"
+import (
+	"errors"
+)
 
 type User struct {
 	ID   int
 	Name string
 }
 
-func NewUser(id int, name string) (*User, error) {
+func New(id int, name string) (*User, error) {
 	if id > 0 && name != "" {
 		return &User{
 			ID:   id,

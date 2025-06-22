@@ -1,70 +1,70 @@
-package main
+package queue
 
 import (
 	"errors"
 	"fmt"
+	"github.com/devenairevo/task-management/internal/task"
+	"github.com/devenairevo/task-management/internal/types"
 	"sync"
 )
-
-const buffSize = 5
 
 type Channel struct {
 	mu       sync.Mutex
 	wg       *sync.WaitGroup
-	buffSize int
-	Task     *Task
-	Chan     chan *Task
+	BuffSize int
+	Task     *task.Task
+	chanel   chan *task.Task
 }
 
 func NewChannel(buffSize int, wg *sync.WaitGroup) *Channel {
 	return &Channel{
-		buffSize: buffSize,
-		Chan:     make(chan *Task, buffSize),
+		BuffSize: buffSize,
+		chanel:   make(chan *task.Task, buffSize),
 		wg:       wg,
 	}
 }
 
-func (c *Channel) Enqueue(task *Task) error {
+func (c *Channel) Enqueue(task *task.Task) error {
 	if task.ID <= 0 || task.Name == "" {
 		return errors.New("error with adding task to the queue")
 	}
-	if c.Chan == nil {
+	if c.chanel == nil {
 		return errors.New("channel not created yet")
 	}
 
 	c.wg.Add(1)
-	c.Chan <- task
+	c.chanel <- task
 
-	task.Status = Created
+	task.Status = types.Created
 	fmt.Printf("Task with ID %d and name %s created\n", task.ID, task.Name)
 
-	task.Status = Processing
+	task.Status = types.Processing
 	fmt.Printf("Task with ID %d and name %s started processing\n", task.ID, task.Name)
 
 	return nil
 }
 
-func (c *Channel) Dequeue() (*Task, error) {
-	if c.Chan == nil {
+func (c *Channel) Dequeue() (*task.Task, error) {
+	if c.chanel == nil {
 		return nil, errors.New("channel not created yet")
 	}
 
-	task := <-c.Chan
+	t := <-c.chanel
 
 	c.wg.Done()
 
-	fmt.Printf("Task with ID %d and name %s finished the processing\n", task.ID, task.Name)
+	fmt.Printf("Task with ID %d and name %s finished the processing\n", t.ID, t.Name)
 
 	fmt.Printf("Queue size: %d\n", c.Size())
 	fmt.Printf("The queue got empty?: %t\n", c.IsEmpty())
 
-	return task, nil
+	return t, nil
 }
 
 func (c *Channel) IsEmpty() bool {
-	return len(c.Chan) == 0
+	return len(c.chanel) == 0
 }
 
 func (c *Channel) Size() int {
-	return len(c.Chan)
+	return len(c.chanel)
 }

@@ -1,24 +1,27 @@
-package main
+package handlers
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devenairevo/task-management/internal/contracts/queuer"
+	"github.com/devenairevo/task-management/internal/contracts/tasker"
+	"github.com/devenairevo/task-management/test/data"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 )
 
-func postTasksHandler(taskMng TaskManager, channel QueueManager, wg *sync.WaitGroup) http.HandlerFunc {
+func PostTasksHandler(taskMng tasker.Tasker, channel queuer.Queuer, wg *sync.WaitGroup) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			fmt.Println("Adding tasks to the queue....")
 
-			tasksList := generateMockTasks(taskMng)
+			tasksList := data.GenerateMockTasks(taskMng)
 
-			for _, task := range tasksList {
-				err := channel.Enqueue(task)
+			for _, t := range tasksList {
+				err := channel.Enqueue(t)
 				if err != nil {
 					return
 				}
@@ -44,7 +47,7 @@ func postTasksHandler(taskMng TaskManager, channel QueueManager, wg *sync.WaitGr
 	}
 }
 
-func getTasksHandler(taskMng TaskManager, channel QueueManager) http.HandlerFunc {
+func GetTasksHandler(taskMng tasker.Tasker, channel queuer.Queuer) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -79,7 +82,7 @@ func getTasksHandler(taskMng TaskManager, channel QueueManager) http.HandlerFunc
 
 }
 
-func taskByID(taskMng TaskManager, channel QueueManager) http.HandlerFunc {
+func TaskByID(taskMng tasker.Tasker, channel queuer.Queuer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pathParts := strings.Split(r.URL.Path, "/")
 		if len(pathParts) != 3 {

@@ -1,37 +1,32 @@
-package main
+package task
 
 import (
 	"errors"
 	"fmt"
-)
-
-type Status string
-
-const (
-	Created    Status = "Created"
-	Processing Status = "Processing"
-	Updated    Status = "Updated"
-	Done       Status = "Done"
+	"github.com/devenairevo/task-management/internal/types"
+	"github.com/devenairevo/task-management/internal/user"
 )
 
 type Task struct {
-	ID     int    `json:"id"`
-	Name   string `json:"name"`
-	Status Status `json:"status"`
+	ID     int          `json:"id"`
+	Name   string       `json:"name"`
+	Status types.Status `json:"status"`
 }
 
-func NewTask(id int, name string, status Status) (*Task, error) {
+type CreateTaskParams struct {
+	UserID   int
+	UserName string
+	TaskID   int
+	Name     string
+}
+
+func NewTask(id int, name string, status types.Status) (*Task, error) {
 	if id != 0 && name != "" {
-		return &Task{id, name, status}, nil
+		return &Task{ID: id, Name: name, Status: status}, nil
 	}
 
 	return nil, errors.New("something wrong with creating a new task")
 
-}
-
-type UserTask struct {
-	*User
-	*Task
 }
 
 func (lt *LocalTaskManager) CreateTask(params *CreateTaskParams) (*Task, error) {
@@ -39,17 +34,17 @@ func (lt *LocalTaskManager) CreateTask(params *CreateTaskParams) (*Task, error) 
 		return nil, errors.New("couldn't create user with task")
 	}
 
-	task, err := NewTask(params.TaskID, params.Name, Created)
+	task, err := NewTask(params.TaskID, params.Name, types.Created)
 	if err != nil {
 		return nil, err
 	}
 
-	user, err := NewUser(params.UserID, params.UserName)
+	u, err := user.New(params.UserID, params.UserName)
 	if err != nil {
 		return nil, err
 	}
 
-	userTask, err := NewUserTask(user, task)
+	userTask, err := NewUserTask(u, task)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +54,7 @@ func (lt *LocalTaskManager) CreateTask(params *CreateTaskParams) (*Task, error) 
 	return task, nil
 }
 
-func NewUserTask(user *User, task *Task) (*UserTask, error) {
+func NewUserTask(user *user.User, task *Task) (*UserTask, error) {
 	if user.ID > 0 && task.ID != 0 && task.Name != "" {
 		return &UserTask{
 			User: user,
@@ -126,27 +121,7 @@ func (lt *LocalTaskManager) UpdateTask(task *Task) error {
 	if task == nil || task.ID < 0 {
 		return errors.New("issue for the updating current task")
 	}
-	task.Status = Updated
+	task.Status = types.Updated
 
 	return nil
-}
-
-func generateMockTasks(manager TaskManager) []*Task {
-	var tasksList []*Task
-
-	task1 := &CreateTaskParams{1, "User1", 1, "Deploy service"}
-	ut1, _ := manager.CreateTask(task1)
-
-	task2 := &CreateTaskParams{1, "User1", 2, "Deploy another service"}
-	ut2, _ := manager.CreateTask(task2)
-
-	task3 := &CreateTaskParams{2, "User2", 3, "Run integration tests"}
-	ut3, _ := manager.CreateTask(task3)
-
-	task4 := &CreateTaskParams{3, "User3", 4, "Generate report"}
-	ut4, _ := manager.CreateTask(task4)
-
-	tasksList = append(tasksList, ut1, ut2, ut3, ut4)
-
-	return tasksList
 }
