@@ -3,11 +3,14 @@ package app
 import (
 	"fmt"
 	"github.com/devenairevo/task-management/internal/contracts/tasker"
+	"github.com/devenairevo/task-management/internal/file"
 	"github.com/devenairevo/task-management/internal/task"
 )
 
-func NewTaskManager(taskDriver string) (tasker.Tasker, error) {
+func NewFileTaskManager(taskDriver string, dirName string) (tasker.Tasker, error) {
 	switch taskDriver {
+	case "file":
+		return file.NewManager(dirName), nil
 	case "local":
 		return task.NewLocalTaskManager(), nil
 	default:
