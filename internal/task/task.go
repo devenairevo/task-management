@@ -99,7 +99,7 @@ func (lt *LocalTaskManager) DescribeTask(taskID int) (*Task, error) {
 		}
 	}
 
-	return nil, errors.New(fmt.Sprintf("❌  Task with ID %d not found", taskID))
+	return nil, fmt.Errorf("❌  Task with ID %d not found", taskID)
 }
 
 func (lt *LocalTaskManager) ListTasks() ([]*Task, error) {
@@ -119,7 +119,7 @@ func (lt *LocalTaskManager) ListTasks() ([]*Task, error) {
 
 func (lt *LocalTaskManager) UpdateTask(task *Task) error {
 	if task == nil || task.ID < 0 {
-		return errors.New("issue for the updating current task")
+		return errors.New("no task found")
 	}
 	task.Status = types.Updated
 
