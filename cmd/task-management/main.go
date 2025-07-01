@@ -22,7 +22,10 @@ The system should provide the following capabilities:
 
 */
 
-const buffSize = 5
+const (
+	buffSize = 5
+	dir      = "./test/tasks/"
+)
 
 func main() {
 	server := &http.Server{
@@ -33,7 +36,11 @@ func main() {
 
 	wg := &sync.WaitGroup{}
 	channel, _ := app.NewQueueManager(buffSize, "local", wg)
-	taskMng, _ := app.NewTaskManager("local")
+
+	// change the taskDriver param (file, local)
+	// file for implementing Saving file in json locally
+	// local for implementing saving tasks data during the session
+	taskMng, _ := app.NewFileTaskManager("file", dir)
 
 	http.HandleFunc("/tasks", handlers.GetTasksHandler(taskMng, channel))
 	http.HandleFunc("/task/create", handlers.PostTasksHandler(taskMng, channel, wg))
@@ -41,7 +48,7 @@ func main() {
 
 	// Run goroutine for Dequeue
 	queue.StartQueueWorker(channel, taskMng)
-	
+
 	fmt.Printf("Server started, please make your HTTP requests "+
 		"to the localhost with a port %s and watch the results in terminal....\n", server.Addr)
 	log.Fatal(server.ListenAndServe())
